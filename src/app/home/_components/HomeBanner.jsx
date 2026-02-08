@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -9,21 +8,6 @@ import Image from "next/image";
  * @param {string} props.heroData.heroImage - Hero image URL (optional)
  */
 export default function HomeBanner({ heroData = null }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    setTimeout(() => {
-      setIsVisible(true);
-      setIsLoading(false);
-    }, 100);
-
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const defaultData = {
     badge: "EST. 2024",
     title: "ELEGANT",
@@ -55,15 +39,9 @@ export default function HomeBanner({ heroData = null }) {
     stats,
   } = data;
 
-  if (isLoading) {
-    return <div className="min-h-[600px] bg-white animate-pulse"></div>;
-  }
-
   return (
     <section
-      className={`relative w-full min-h-[600px] md:min-h-[700px] bg-white overflow-hidden transition-opacity duration-1000 ${
-        isVisible ? "opacity-100" : "opacity-0"
-      }`}
+      className="relative w-full min-h-[600px] md:min-h-[700px] bg-white overflow-hidden"
     >
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
         <div
@@ -78,32 +56,22 @@ export default function HomeBanner({ heroData = null }) {
       <div className="absolute inset-0 pointer-events-none">
         <div
           className="absolute top-10 md:top-20 right-10 md:right-20 w-48 h-48 md:w-64 md:h-64 border-2 border-gray-200 rounded-full opacity-50 transition-transform duration-300"
-          style={{ transform: `translateY(${scrollY * 0.15}px)` }}
         ></div>
         <div
           className="absolute bottom-10 md:bottom-20 left-10 md:left-20 w-32 h-32 md:w-48 md:h-48 border-2 border-gray-200 rounded-full opacity-50 transition-transform duration-300"
-          style={{ transform: `translateY(${-scrollY * 0.1}px)` }}
         ></div>
       </div>
 
       <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-between px-4 sm:px-8 md:px-12 lg:px-20 xl:px-24 py-12 md:py-16 lg:py-20 gap-8 lg:gap-12">
         <div className="flex-1 max-w-2xl w-full">
           <div
-            className={`inline-block text-xs text-gray-500 uppercase tracking-[0.3em] mb-4 md:mb-6 font-semibold px-4 py-2 border border-gray-300 rounded-full transition-all duration-700 delay-200 hover:border-orange-500 hover:text-orange-500 ${
-              isVisible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-4 opacity-0"
-            }`}
+            className="inline-block text-xs text-gray-500 uppercase tracking-[0.3em] mb-4 md:mb-6 font-semibold px-4 py-2 border border-gray-300 rounded-full hover:border-orange-500 hover:text-orange-500"
           >
             {badge}
           </div>
 
           <h1
-            className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-4 md:mb-6 leading-[1.1] transition-all duration-700 delay-300 ${
-              isVisible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-4 opacity-0"
-            }`}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-4 md:mb-6 leading-[1.1]"
           >
             <span className="bg-gradient-to-r from-black via-gray-800 to-black bg-clip-text text-transparent">
               {title}
@@ -119,21 +87,13 @@ export default function HomeBanner({ heroData = null }) {
           </h1>
 
           <p
-            className={`text-base sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-10 md:mb-12 max-w-xl leading-relaxed transition-all duration-700 delay-400 ${
-              isVisible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-4 opacity-0"
-            }`}
+            className="text-base sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-10 md:mb-12 max-w-xl leading-relaxed"
           >
             {description}
           </p>
 
           <div
-            className={`flex flex-wrap gap-4 mb-8 sm:mb-10 md:mb-12 transition-all duration-700 delay-500 ${
-              isVisible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-4 opacity-0"
-            }`}
+            className="flex flex-wrap gap-4 mb-8 sm:mb-10 md:mb-12"
           >
             <Link
               href={ctaPrimaryLink || "/shop"}
@@ -160,11 +120,7 @@ export default function HomeBanner({ heroData = null }) {
 
           {stats && stats.length > 0 && (
             <div
-              className={`flex flex-wrap gap-6 sm:gap-8 md:gap-10 text-gray-600 transition-all duration-700 delay-600 ${
-                isVisible
-                  ? "translate-y-0 opacity-100"
-                  : "-translate-y-4 opacity-0"
-              }`}
+              className="flex flex-wrap gap-6 sm:gap-8 md:gap-10 text-gray-600"
             >
               {stats.map((stat, index) => (
                 <div key={index} className="relative group cursor-default">
@@ -185,12 +141,6 @@ export default function HomeBanner({ heroData = null }) {
           <div className="relative mx-auto">
             <div
               className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-[22rem] lg:h-[22rem] xl:w-96 xl:h-96 rounded-full overflow-hidden border-4 border-gray-200 shadow-2xl transition-all duration-500 hover:scale-105 hover:shadow-3xl hover:border-orange-200 mx-auto"
-              style={{
-                transform:
-                  window.innerWidth < 1024
-                    ? `translateY(${scrollY * 0.05}px)`
-                    : "none",
-              }}
             >
               {heroImage ? (
                 <Image
@@ -213,15 +163,11 @@ export default function HomeBanner({ heroData = null }) {
 
             <div
               className="absolute -top-4 -right-4 w-16 h-16 xl:w-24 xl:h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full border-4 border-white shadow-xl opacity-90 animate-pulse"
-              style={{
-                transform: `translateY(${-scrollY * 0.08}px)`,
-              }}
             ></div>
             <div
               className="absolute -bottom-4 -left-4 w-20 h-20 xl:w-32 xl:h-32 bg-gradient-to-br from-gray-700 to-gray-900 rounded-full border-4 border-white shadow-xl opacity-70 animate-pulse"
               style={{
                 animationDelay: "1s",
-                transform: `translateY(${scrollY * 0.06}px)`,
               }}
             ></div>
 
