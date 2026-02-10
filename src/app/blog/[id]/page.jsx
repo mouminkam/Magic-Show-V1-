@@ -8,6 +8,7 @@ import { t } from "../../../locales/i18n/getTranslation";
 import { createServerAxios } from "../../../api/config/serverAxios";
 import { cachedServerApi } from "../../../lib/cachedServerApi";
 import { CACHE_REVALIDATE } from "../../../lib/cacheConfig";
+import { getBlogPostWithAxios, getBlogCommentsWithAxios } from "../../../lib/blogApi";
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
@@ -46,41 +47,9 @@ const BlogDetailSection = dynamic(
   }
 );
 
-/** Uses passed-in axios (no cookies inside cache). */
-async function getBlogPostWithAxios(serverAxios, postId) {
-  try {
-    const { data } = await serverAxios.get(`/blog/posts/${postId}`);
-    if (data?.success && data?.data) {
-      const d = data.data;
-      return {
-        id: d.id,
-        title: d.title,
-        content: d.content ?? "",
-        image: d.image ?? "/images/img24.jpg",
-        date: d.date ?? "",
-      };
-    }
-    return null;
-  } catch (error) {
-    if (error?.response?.status === 404) return null;
-    console.error("Error fetching blog post:", error);
-    return null;
-  }
-}
-
-/** Uses passed-in axios (no cookies inside cache). */
-async function getBlogCommentsWithAxios(serverAxios, postId) {
-  try {
-    const { data } = await serverAxios.get(`/blog/posts/${postId}/comments`);
-    if (data?.success && Array.isArray(data.data)) {
-      return data.data;
-    }
-    return [];
-  } catch (error) {
-    console.error("Error fetching blog comments:", error);
-    return [];
-  }
-}
+const SecondarySections = dynamic(() => import("./_components/SecondarySections"), {
+  ssr: true,
+});
 
 export default async function BlogDetailPage({ params }) {
   const lang = await getLanguage();
@@ -106,20 +75,19 @@ export default async function BlogDetailPage({ params }) {
   }
 
   const serverAxios = await createServerAxios();
-  const [post, comments] = await Promise.all([
-    cachedServerApi(
-      ["blog", "post", postId, lang],
-      () => getBlogPostWithAxios(serverAxios, postId),
-      CACHE_REVALIDATE,
-      ["blog", `blog-post-${postId}`]
-    ),
-    cachedServerApi(
-      ["blog", "comments", postId, lang],
-      () => getBlogCommentsWithAxios(serverAxios, postId),
-      CACHE_REVALIDATE,
-      ["blog", `blog-post-${postId}`]
-    ),
-  ]);
+  const post = await cachedServerApi(
+    ["blog", "post", postId, lang],
+    () => getBlogPostWithAxios(serverAxios, postId),
+    CACHE_REVALIDATE,
+    ["blog", `blog-post-${postId}`]
+  );
+
+  const commentsPromise = cachedServerApi(
+    ["blog", "comments", postId, lang],
+    () => getBlogCommentsWithAxios(serverAxios, postId),
+    CACHE_REVALIDATE,
+    ["blog", `blog-post-${postId}`]
+  );
 
   if (!post) {
     return (
@@ -143,7 +111,11 @@ export default async function BlogDetailPage({ params }) {
     <div className="bg-white min-h-screen">
       <ErrorBoundary>
         <Suspense fallback={<SectionSkeleton variant="default" height="h-screen" />}>
-          <BlogDetailSection post={post} comments={comments ?? []} postId={postId} />
+          <BlogDetailSection post={post} postId={postId} />
+        </Suspense>
+
+        <Suspense fallback={<SectionSkeleton variant="default" height="h-96" />}>
+          <SecondarySections promises={{ comments: commentsPromise }} postId={postId} />
         </Suspense>
       </ErrorBoundary>
     </div>

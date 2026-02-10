@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import SectionSkeleton from "../../../components/ui/SectionSkeleton";
-import SectionBoundary from "./SectionBoundary";
+import SectionBoundary from "../../../components/ui/SectionBoundary";
 
 const NewArrivals = dynamic(() => import("./NewArrivals"), {
   loading: () => <SectionSkeleton variant="grid" cardCount={4} height="h-screen" />,
