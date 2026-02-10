@@ -36,6 +36,8 @@ export default function ShopControls({
   const [isPending, startTransition] = useTransition();
   const isAr = lang === "ar";
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const filterDrawerCloseTimeoutRef = useRef(null);
   
   // Client-side state for categories and filters
   const [categoriesData, setCategoriesData] = useState(categories);
@@ -59,6 +61,38 @@ export default function ShopControls({
       maxPrice: params.get("maxPrice") ? parseFloat(params.get("maxPrice")) : defaultPriceRange.max,
     };
   });
+
+  const openFilterDrawer = () => {
+    if (filterDrawerCloseTimeoutRef.current) {
+      clearTimeout(filterDrawerCloseTimeoutRef.current);
+      filterDrawerCloseTimeoutRef.current = null;
+    }
+    setIsFilterOpen(true);
+    setIsFilterDrawerOpen(false);
+    requestAnimationFrame(() => {
+      setIsFilterDrawerOpen(true);
+    });
+  };
+
+  const closeFilterDrawer = () => {
+    setIsFilterDrawerOpen(false);
+    if (filterDrawerCloseTimeoutRef.current) {
+      clearTimeout(filterDrawerCloseTimeoutRef.current);
+    }
+    filterDrawerCloseTimeoutRef.current = setTimeout(() => {
+      setIsFilterOpen(false);
+      filterDrawerCloseTimeoutRef.current = null;
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (filterDrawerCloseTimeoutRef.current) {
+        clearTimeout(filterDrawerCloseTimeoutRef.current);
+        filterDrawerCloseTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const [draftPriceRange, setDraftPriceRange] = useState(() => ({
     min: uiFilters.minPrice,
@@ -277,7 +311,7 @@ export default function ShopControls({
             </button>
 
             <button
-              onClick={() => setIsFilterOpen(true)}
+              onClick={openFilterDrawer}
               className="flex items-center px-5 py-3 bg-gray-900 text-white rounded-lg gap-2 shadow-lg font-semibold focus:outline-none"
             >
               <FilterIcon className="w-5 h-5" />
@@ -326,11 +360,11 @@ export default function ShopControls({
       {isFilterOpen && (
         <ErrorBoundary>
           <Suspense fallback={<SectionSkeleton variant="default" height="h-screen" />}>
-            <MobileFilterDrawer onClose={() => setIsFilterOpen(false)}>
+            <MobileFilterDrawer open={isFilterDrawerOpen} onRequestClose={closeFilterDrawer}>
               <div className="flex justify-between items-center mb-4 sticky top-0 z-50 bg-white py-0 mt-20">
                 <h2 className="text-lg font-bold">{isAr ? "الفلاتر" : "Filters"}</h2>
                 <button
-                  onClick={() => setIsFilterOpen(false)}
+                  onClick={closeFilterDrawer}
                   aria-label="Close"
                   className="p-2 rounded-full hover:bg-gray-100 transition"
                 >
@@ -365,7 +399,7 @@ export default function ShopControls({
                   {isAr ? "إعادة" : "Reset"}
                 </button>
                 <button
-                  onClick={() => setIsFilterOpen(false)}
+                  onClick={closeFilterDrawer}
                   className="flex-1 bg-black text-white rounded-lg px-6 py-3 font-bold text-base shadow hover:bg-gray-800 transition-all duration-200"
                 >
                   {isAr ? "تم" : "Done"}
