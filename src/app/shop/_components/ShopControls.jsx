@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useTransition, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Filter as FilterIcon, X } from "lucide-react";
@@ -33,6 +33,7 @@ export default function ShopControls({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
   const isAr = lang === "ar";
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
@@ -41,22 +42,49 @@ export default function ShopControls({
   const [filtersData, setFiltersData] = useState(filters);
   const [isLoading, setIsLoading] = useState(false);
 
-  const activeCategory = searchParams?.get("category") || "All";
-  const selectedSize = searchParams?.get("size") || "";
-  const selectedColor = searchParams?.get("color") || "";
-  const selectedSeason = searchParams?.get("season") || "";
+  const searchKey = searchParams?.toString() || "";
 
   const defaultPriceRange = filtersData.priceRange || { min: 0, max: 100 };
+  const priceDebounceRef = useRef(null);
+  const [isPriceDebouncing, setIsPriceDebouncing] = useState(false);
 
-  const minPrice = searchParams?.get("minPrice")
-    ? parseFloat(searchParams.get("minPrice"))
-    : defaultPriceRange.min;
+  const [uiFilters, setUiFilters] = useState(() => {
+    const params = new URLSearchParams(searchKey);
+    return {
+      category: params.get("category") || "All",
+      size: params.get("size") || "",
+      color: params.get("color") || "",
+      season: params.get("season") || "",
+      minPrice: params.get("minPrice") ? parseFloat(params.get("minPrice")) : defaultPriceRange.min,
+      maxPrice: params.get("maxPrice") ? parseFloat(params.get("maxPrice")) : defaultPriceRange.max,
+    };
+  });
 
-  const maxPrice = searchParams?.get("maxPrice")
-    ? parseFloat(searchParams.get("maxPrice"))
-    : defaultPriceRange.max;
+  const [draftPriceRange, setDraftPriceRange] = useState(() => ({
+    min: uiFilters.minPrice,
+    max: uiFilters.maxPrice,
+  }));
 
-  const priceRange = { min: minPrice, max: maxPrice };
+  useEffect(() => {
+    const params = new URLSearchParams(searchKey);
+    const next = {
+      category: params.get("category") || "All",
+      size: params.get("size") || "",
+      color: params.get("color") || "",
+      season: params.get("season") || "",
+      minPrice: params.get("minPrice") ? parseFloat(params.get("minPrice")) : defaultPriceRange.min,
+      maxPrice: params.get("maxPrice") ? parseFloat(params.get("maxPrice")) : defaultPriceRange.max,
+    };
+    setUiFilters(next);
+    setDraftPriceRange({ min: next.minPrice, max: next.maxPrice });
+  }, [searchKey, defaultPriceRange.min, defaultPriceRange.max]);
+
+  const activeCategory = uiFilters.category;
+  const selectedSize = uiFilters.size;
+  const selectedColor = uiFilters.color;
+  const selectedSeason = uiFilters.season;
+
+  const priceRange = { min: uiFilters.minPrice, max: uiFilters.maxPrice };
 
   // Client-side fetching for categories and filters
   useEffect(() => {
@@ -106,7 +134,38 @@ export default function ShopControls({
   }, []); // Only run once on mount
 
   const updateURLFilters = (updates) => {
-    const params = new URLSearchParams(searchParams?.toString() || "");
+    const params = new URLSearchParams(searchKey);
+
+    setUiFilters((prev) => {
+      const next = { ...prev };
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key === "category") {
+          next.category = value === null || value === "" || value === "All" ? "All" : String(value);
+          return;
+        }
+        if (key === "size") {
+          next.size = value === null || value === "" ? "" : String(value);
+          return;
+        }
+        if (key === "color") {
+          next.color = value === null || value === "" ? "" : String(value);
+          return;
+        }
+        if (key === "season") {
+          next.season = value === null || value === "" ? "" : String(value);
+          return;
+        }
+        if (key === "minPrice") {
+          next.minPrice = value === null || value === "" ? defaultPriceRange.min : Number(value);
+          return;
+        }
+        if (key === "maxPrice") {
+          next.maxPrice = value === null || value === "" ? defaultPriceRange.max : Number(value);
+          return;
+        }
+      });
+      return next;
+    });
 
     Object.entries(updates).forEach(([key, value]) => {
       if (value === null || value === "" || value === "All") {
@@ -117,7 +176,9 @@ export default function ShopControls({
     });
 
     params.set("page", "1");
-    router.push(`/shop?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`/shop?${params.toString()}`, { scroll: false });
+    });
   };
 
   const handleCategoryChange = (category) => {
@@ -137,17 +198,59 @@ export default function ShopControls({
   };
 
   const handlePriceRangeChange = (newRange) => {
-    const defaultMin = defaultPriceRange.min;
-    const defaultMax = defaultPriceRange.max;
-
-    updateURLFilters({
-      minPrice: newRange.min !== defaultMin ? newRange.min : null,
-      maxPrice: newRange.max !== defaultMax ? newRange.max : null,
-    });
+    setIsPriceDebouncing(true);
+    setDraftPriceRange(newRange);
   };
 
+  useEffect(() => {
+    if (!draftPriceRange) return;
+
+    if (draftPriceRange.min === uiFilters.minPrice && draftPriceRange.max === uiFilters.maxPrice) {
+      setIsPriceDebouncing(false);
+      return;
+    }
+
+    if (priceDebounceRef.current) {
+      clearTimeout(priceDebounceRef.current);
+    }
+
+    priceDebounceRef.current = setTimeout(() => {
+      const defaultMin = defaultPriceRange.min;
+      const defaultMax = defaultPriceRange.max;
+
+      updateURLFilters({
+        minPrice: draftPriceRange.min !== defaultMin ? draftPriceRange.min : null,
+        maxPrice: draftPriceRange.max !== defaultMax ? draftPriceRange.max : null,
+      });
+
+      setIsPriceDebouncing(false);
+    }, 600);
+
+    return () => {
+      if (priceDebounceRef.current) {
+        clearTimeout(priceDebounceRef.current);
+      }
+    };
+  }, [draftPriceRange, uiFilters.minPrice, uiFilters.maxPrice, defaultPriceRange.min, defaultPriceRange.max]);
+
   const handleResetFilters = () => {
-    router.push("/shop?page=1", { scroll: false });
+    if (priceDebounceRef.current) {
+      clearTimeout(priceDebounceRef.current);
+      priceDebounceRef.current = null;
+    }
+    setIsPriceDebouncing(false);
+    setUiFilters({
+      category: "All",
+      size: "",
+      color: "",
+      season: "",
+      minPrice: defaultPriceRange.min,
+      maxPrice: defaultPriceRange.max,
+    });
+    setDraftPriceRange({ min: defaultPriceRange.min, max: defaultPriceRange.max });
+    startTransition(() => {
+      router.push("/shop?page=1", { scroll: false });
+    });
   };
 
   return (
@@ -198,9 +301,11 @@ export default function ShopControls({
                 </button>
               </div>
               <FilterSidebar
-                priceRange={priceRange}
+                priceRange={draftPriceRange}
                 availablePriceRange={defaultPriceRange}
                 onPriceRangeChange={handlePriceRangeChange}
+                isPending={isPending}
+                isPriceDebouncing={isPriceDebouncing}
                 sizes={filtersData.sizes}
                 selectedSize={selectedSize}
                 onSizeChange={handleSizeChange}
@@ -234,9 +339,11 @@ export default function ShopControls({
               </div>
 
               <FilterSidebar
-                priceRange={priceRange}
+                priceRange={draftPriceRange}
                 availablePriceRange={defaultPriceRange}
                 onPriceRangeChange={handlePriceRangeChange}
+                isPending={isPending}
+                isPriceDebouncing={isPriceDebouncing}
                 sizes={filtersData.sizes}
                 selectedSize={selectedSize}
                 onSizeChange={handleSizeChange}
